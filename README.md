@@ -10,4 +10,4 @@ Here’s the script:
 After you enable the script and open a DRM video, it’ll show the PSSH and automatically copy it for you.
 
 For more informations, you can also check this topic:
-[https://github.com/iamtarachand/Obtaining-PSSH](https://github.com/iamtarachand/Obtaining-PSSH)https://github.com/iamtarachand/Obtaining-PSSH
+https://github.com/iamtarachand/Obtaining-PSSH
