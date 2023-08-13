@@ -1,0 +1,79 @@
+// ==UserScript==
+// @name         Modified Truncated EME Logger v2
+// @version      2.0
+// @description  A modified and truncated version of EME Logger with Widevine PSSH detector
+// @match        *://*/*
+// @run-at       document-start
+// @grant        none
+// ==/UserScript==
+
+(function() {
+    console.log('[EME Logger] Loading');
+
+    function hexToBytes(hexString) {
+        return hexString.match(/.{1,2}/g).map(x => +('0x' + x));
+    };
+
+    const b64 = {
+        decode: s => Uint8Array.from(atob(s), c => c.charCodeAt(0)),
+        encode: b => btoa(String.fromCharCode(...new Uint8Array(b))),
+        tohex: str => {
+            const raw = atob(str);
+            let result = '';
+            for (let i = 0; i < raw.length; i++) {
+                const hex = raw.charCodeAt(i).toString(16);
+                result += (hex.length === 2 ? hex : '0' + hex);
+            }
+            return result
+        }
+    };
+
+    const fnproxy = (object, func) => new Proxy(object, { apply: func });
+
+    const proxy = (object, key, func) => Object.defineProperty(object, key, {
+        value: fnproxy(object[key], func)
+    });
+
+    proxy(MediaKeySession.prototype, 'generateRequest', async (_target, _this, _args) => {
+        const [initDataType, initData] = _args;
+
+        const initDataHex = b64.tohex(b64.encode(initData));
+        const widevineCharacteristicSegment = '7073736800000000edef8ba979d64acea3c827dcd51d21ed';
+        const widevineCharacteristicSegmentPosition = initDataHex.search(widevineCharacteristicSegment);
+
+        let PSSH
+
+        if (widevineCharacteristicSegmentPosition) {
+            const psshHex = initDataHex.slice(widevineCharacteristicSegmentPosition - 8);
+            PSSH = b64.encode(hexToBytes(psshHex))
+        }
+
+        console.log(
+            `[EME] MediaKeySession::generateRequest\n` +
+            `    Session ID: ${_this.sessionId || '(Not Available)'}\n` +
+            `    Init Data Type: ${initDataType}\n` +
+            `    Init Data: ${b64.encode(initData)}\n` +
+            `    True Widevine PSSH: ${PSSH || '(Not Available)'}`
+        );
+
+        if (PSSH) {
+            copyToClipboard(PSSH);
+            alert(`${PSSH}\n\nPSSH has been copied to clipboard`);
+        } else {
+            alert("PSSH is empty");
+        }
+
+        return _target.apply(_this, _args);
+    });
+
+    function copyToClipboard(text) {
+        var dummy = document.createElement("textarea");
+        document.body.appendChild(dummy);
+        dummy.value = text;
+        dummy.select();
+        document.execCommand("copy");
+        document.body.removeChild(dummy);
+    }
+
+    console.log('[EME Logger] Loaded');
+})();
